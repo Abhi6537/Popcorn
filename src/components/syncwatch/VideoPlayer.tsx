@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward } from 'lucide-react';
 import { VideoState } from '@/hooks/useRoom';
 import { Slider } from '@/components/ui/slider';
 
@@ -51,6 +51,8 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [isCssFullscreen, setIsCssFullscreen] = useState(false);
+  const [isFullscreenUI, setIsFullscreenUI] = useState(false);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
   const isSyncing = useRef(false);
   const ytReady = useRef(false);
@@ -81,7 +83,7 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
 
       // Destroy old player if exists
       if (ytPlayerRef.current) {
-        try { ytPlayerRef.current.destroy(); } catch {}
+        try { ytPlayerRef.current.destroy(); } catch { }
         ytPlayerRef.current = null;
       }
 
@@ -165,7 +167,7 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
       } else if (!videoState.playing && ytState === window.YT.PlayerState.PLAYING) {
         player.pauseVideo();
       }
-    } catch {}
+    } catch { }
 
     setTimeout(() => { isSyncing.current = false; }, 500);
   }, [videoState.playing, videoState.currentTime, videoState.updatedAt, isYouTube]);
@@ -187,7 +189,7 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
   useEffect(() => {
     return () => {
       if (!isYouTube && ytPlayerRef.current) {
-        try { ytPlayerRef.current.destroy(); } catch {}
+        try { ytPlayerRef.current.destroy(); } catch { }
         ytPlayerRef.current = null;
         ytReady.current = false;
       }
@@ -207,7 +209,7 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
     }
 
     if (videoState.playing && video.paused) {
-      video.play().catch(() => {});
+      video.play().catch(() => { });
     } else if (!videoState.playing && !video.paused) {
       video.pause();
     }
@@ -253,12 +255,147 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
     }
   }, [onSync, isHost, isYouTube]);
 
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+  useEffect(() => {
+    if (isCssFullscreen) {
+      document.body.classList.add('mobile-fullscreen');
+      setIsFullscreenUI(true);
+      setTimeout(() => window.scrollTo(0, 1), 100);
     } else {
-      containerRef.current.requestFullscreen();
+      document.body.classList.remove('mobile-fullscreen');
+      // Only set to false if also not native fullscreen
+      const isNativeFs = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      if (!isNativeFs) setIsFullscreenUI(false);
+    }
+    return () => {
+      document.body.classList.remove('mobile-fullscreen');
+    };
+  }, [isCssFullscreen]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNativeFs = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreenUI(isNativeFs || isCssFullscreen);
+      if (!isNativeFs && !isCssFullscreen) {
+        unlockOrientation();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, [isCssFullscreen]);
+
+  const lockOrientation = async () => {
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock('landscape').catch(() => { });
+      } else if ((window.screen as any).lockOrientation) {
+        (window.screen as any).lockOrientation('landscape');
+      } else if ((window.screen as any).mozLockOrientation) {
+        (window.screen as any).mozLockOrientation('landscape');
+      } else if ((window.screen as any).msLockOrientation) {
+        (window.screen as any).msLockOrientation('landscape');
+      }
+    } catch (e) { }
+  };
+
+  const unlockOrientation = () => {
+    try {
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      } else if ((window.screen as any).unlockOrientation) {
+        (window.screen as any).unlockOrientation();
+      } else if ((window.screen as any).mozUnlockOrientation) {
+        (window.screen as any).mozUnlockOrientation();
+      } else if ((window.screen as any).msUnlockOrientation) {
+        (window.screen as any).msUnlockOrientation();
+      }
+    } catch (e) { }
+  };
+
+  const toggleFullscreen = () => {
+    const elem = containerRef.current as any;
+    if (!elem) return;
+
+    const isFullscreen = !!(document.fullscreenElement ||
+      (document as any).webkitFullscreenElement ||
+      (document as any).mozFullScreenElement ||
+      (document as any).msFullscreenElement);
+
+    if (isFullscreen) {
+      unlockOrientation();
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        (document as any).msExitFullscreen();
+      }
+      return;
+    }
+
+    if (isCssFullscreen) {
+      unlockOrientation();
+      setIsCssFullscreen(false);
+      return;
+    }
+
+    const hasFullscreenAPI = !!(elem.requestFullscreen || elem.webkitRequestFullscreen || elem.mozRequestFullScreen || elem.msRequestFullscreen);
+
+    if (hasFullscreenAPI) {
+      try {
+        const promise = elem.requestFullscreen
+          ? elem.requestFullscreen()
+          : elem.webkitRequestFullscreen
+            ? elem.webkitRequestFullscreen()
+            : elem.mozRequestFullScreen
+              ? elem.mozRequestFullScreen()
+              : elem.msRequestFullscreen();
+
+        if (promise && promise.catch) {
+          promise.then(() => lockOrientation()).catch(() => enterFallbackFullscreen());
+        } else {
+          lockOrientation();
+        }
+      } catch (e) {
+        enterFallbackFullscreen();
+      }
+    } else {
+      enterFallbackFullscreen();
+    }
+  };
+
+  const enterFallbackFullscreen = () => {
+    if (!isYouTube && videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
+      try {
+        (videoRef.current as any).webkitEnterFullscreen();
+      } catch (e) {
+        setIsCssFullscreen(true);
+        lockOrientation();
+      }
+    } else {
+      setIsCssFullscreen(true);
+      lockOrientation();
     }
   };
 
@@ -301,7 +438,10 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-video bg-black rounded-lg overflow-hidden group"
+      className={`video-player-container relative w-full bg-black overflow-hidden group flex items-center justify-center ${isCssFullscreen
+          ? 'h-[100vh] rounded-none'
+          : 'aspect-video rounded-lg'
+        }`}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => setShowControls(false)}
       onTouchStart={() => setShowControls(true)}
@@ -354,9 +494,8 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
       {/* Controls overlay — shown for both YouTube and direct */}
       {hasVideo && (
         <div
-          className={`absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 ${
-            showControls ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+            }`}
         >
           {/* Progress bar */}
           <div className="mb-2 sm:mb-3">
@@ -380,9 +519,8 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
               </button>
               <button
                 onClick={videoState.playing ? handlePause : handlePlay}
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors ${
-                  isHost ? 'bg-primary hover:bg-primary/80' : 'bg-primary/50 cursor-not-allowed'
-                }`}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors ${isHost ? 'bg-primary hover:bg-primary/80' : 'bg-primary/50 cursor-not-allowed'
+                  }`}
                 disabled={!isHost}
               >
                 {videoState.playing ? (
@@ -418,7 +556,7 @@ export function VideoPlayer({ videoState, isHost, onSync }: VideoPlayerProps) {
                 <Slider value={[muted ? 0 : volume]} max={100} step={1} onValueChange={handleVolumeChange} />
               </div>
               <button onClick={toggleFullscreen} className="text-foreground/80 hover:text-foreground transition-colors">
-                <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />
+                {isFullscreenUI ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
             </div>
           </div>

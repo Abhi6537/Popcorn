@@ -91,13 +91,49 @@
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: hsl(240 6% 7%);
 }
+
 ::-webkit-scrollbar-thumb {
   background: hsl(240 5% 25%);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(240 5% 35%);
+}
+
+/* Mobile CSS-Fullscreen Fallback Utilities */
+body.mobile-fullscreen {
+  background-color: black !important;
+}
+
+body.mobile-fullscreen #root,
+body.mobile-fullscreen .h-dvh,
+body.mobile-fullscreen .room-content-wrapper {
+  height: auto !important;
+  min-height: 100vh !important;
+  display: block !important;
+  overflow: visible !important;
+}
+
+body.mobile-fullscreen .room-layout-header,
+body.mobile-fullscreen .room-layout-nav,
+body.mobile-fullscreen .video-player-container~* {
+  display: none !important;
+}
+
+body.mobile-fullscreen .room-scroll-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+body.mobile-fullscreen .video-player-container {
+  border-radius: 0 !important;
+  max-width: 100vw !important;
 }

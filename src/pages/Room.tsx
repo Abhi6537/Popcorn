@@ -81,7 +81,7 @@ export default function Room() {
     return (
       <div className="h-dvh flex flex-col bg-background">
         {/* Compact header */}
-        <header className="flex items-center justify-between px-3 py-2 border-b border-border/50 glass-panel shrink-0">
+        <header className="room-layout-header flex items-center justify-between px-3 py-2 border-b border-border/50 glass-panel shrink-0">
           <div className="flex items-center gap-2">
             <button onClick={() => navigate('/')} className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" />
@@ -114,9 +114,9 @@ export default function Room() {
         </header>
 
         {/* Content based on tab */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="room-content-wrapper flex-1 min-h-0 overflow-hidden">
           {mobileTab === 'video' && (
-            <div className="flex flex-col h-full p-2 gap-2 overflow-y-auto">
+            <div className="room-scroll-container flex flex-col h-full p-2 gap-2 overflow-y-auto">
               <VideoPlayer videoState={videoState} isHost={isHost} onSync={syncVideo} />
               <VideoSourceInput onSync={syncVideo} isHost={isHost} />
               <HostControlPanel
@@ -166,7 +166,7 @@ export default function Room() {
         </div>
 
         {/* Bottom tab bar */}
-        <nav className="flex items-center border-t border-border/50 glass-panel shrink-0">
+        <nav className="room-layout-nav flex items-center border-t border-border/50 glass-panel shrink-0">
           {[
             { id: 'video' as const, icon: Video, label: 'Watch' },
             { id: 'chat' as const, icon: MessageSquare, label: 'Chat' },
